@@ -1,0 +1,5 @@
+enabled: false
+teamSize: 1
+#times in milliseconds
+borderShrinksAfter: 181000
+gracePeriodEndsAfter: 601000
