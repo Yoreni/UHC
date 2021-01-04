@@ -21,21 +21,41 @@ public class Utils
 	final static long ONE_MIN = 60000;
 	final static long ONE_HOUR = 3600000;
 	
-	public static int getTeam(Player player, ArrayList<UHCTeam> teams) 
+	public static UHCTeam getPlayersTeam(Player player, ArrayList<UHCTeam> teams) 
 	{
-		return getTeam(player.getUniqueId(), teams);
+		UUID uuid = player.getUniqueId();
+		return getPlayersTeam(uuid, teams);
 	}
 	
-	public static int getTeam(UUID uuid, ArrayList<UHCTeam> teams) 
-	{
+	public static UHCTeam getPlayersTeam(UUID uuid, ArrayList<UHCTeam> teams) 
+	{	
 		for (UHCTeam team : teams)
 		{
 			if (team.isInTeam(uuid))
 			{
-				return team.getNumber();
+				return team;
 			}
 		}
-		return -1; //if the player isnt in a team -1 gets returned
+		return null; //if the player isnt in a team -1 gets returned
+	}
+	
+	public static int getPlayersTeamNumber(Player player, ArrayList<UHCTeam> teams) 
+	{
+		UUID uuid = player.getUniqueId();
+		return getPlayersTeamNumber(uuid, teams);
+	}
+	
+	public static int getPlayersTeamNumber(UUID uuid, ArrayList<UHCTeam> teams) 
+	{
+		UHCTeam team = getPlayersTeam(uuid, teams);
+		if(team == null)
+		{
+			return -1;
+		}
+		else
+		{
+			return team.getNumber();
+		}
 	}
 	
 	public static int randint(int min, int max) 

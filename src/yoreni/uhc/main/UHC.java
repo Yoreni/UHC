@@ -10,11 +10,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Statistic;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.WorldBorder;
 import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
+import org.bukkit.advancement.Advancement;
 import org.bukkit.boss.BarColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
@@ -34,14 +36,11 @@ public class UHC
 	//this is how many player there are in a team
 	static int teamSize = 0;
 	
-	//this is how fast the border will shrink the unit is in blocks per second
-	//final double BORDER_SHRINK_SPEED = 0.35;
-	
 	GameStatus status = GameStatus.OFF; // this is just the stage of the game is in.
 	Main main = null;
 	
 	// Time varibles
-	long start = 0;
+	private long start = 0;
 	//
 	int startBorderSize = 0;
 	//
@@ -53,6 +52,23 @@ public class UHC
 	public UHC(Main main)
 	{
 		this.main = main;
+	}
+	
+	public long getStartTimestamp()
+	{
+		return start;
+	}
+	
+	public long getGameTime()
+	{
+		if(status == GameStatus.PLAYING)
+		{
+			return System.currentTimeMillis() - start;
+		}
+		else
+		{
+			return 0;
+		}
 	}
 	
 	public void setBorderShrinkSpeed(double blocksPerSecond)
@@ -117,6 +133,13 @@ public class UHC
 			creater.environment(dimension);
 			creater.hardcore(true);
 			
+			if(dimension  == Environment.NORMAL)
+			{
+				creater.generatorSettings("{\"structures\": {\"structures\": {\"village\": {\"salt\": 8015723, \"spacing\": 32, \"separation\": 8}}}, \"layers\": [{\"block\": \"stone\", \"height\": 1}, {\"block\": \"grass\", \"height\": 1}], \"biome\":\"plains\"");
+			}
+			
+			main.debug(worldName + "s settings: " + creater.generatorSettings());
+			
 			world = Bukkit.createWorld(creater);
 		}
 		
@@ -127,7 +150,6 @@ public class UHC
 		
 		world.setDifficulty(Difficulty.HARD);
 		world.setGameRuleValue("naturalRegeneration", "false");
-		world.setFullTime(0);
 		world.setThundering(false);
 		world.setPVP(false);
 		WorldBorder border = world.getWorldBorder();
@@ -142,6 +164,7 @@ public class UHC
 		startBorderSize = (playersPlaying * 40) + 2000;
 		
 		World world = Bukkit.getWorld(UHC_WORLD_NAME);
+		world.setFullTime(0);
 		WorldBorder border = world.getWorldBorder();
 		border.setSize(startBorderSize);
 
@@ -208,11 +231,15 @@ public class UHC
 
 		teamsAlive = noTeams;
 		world = Bukkit.getWorld(UHC_WORLD_NAME);
+		
+		//to remove everyones advancements
+		//janky i know but i couldnt find another way. theres litterly no way to remove advancements in the spigot API
+		Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "advancement revoke @a everything");
 
 		for (UHCTeam uhcteam : teams) 
 		{
 			Location loc = Utils.rtp(startBorderSize / 2);
-			loc.setY(loc.getY() + 3); //adds 3 just so the play doesnt sufficate in any blocks on intainal spawn
+			loc.setY(loc.getY() + 1); //adds 2 just so the play doesnt sufficate in any blocks on intainal spawn
 
 			for(Player play : uhcteam.getPlayers())
 			{
@@ -227,10 +254,13 @@ public class UHC
 				play.setGameMode(GameMode.SURVIVAL);
 				play.setHealth(play.getMaxHealth());
 				play.setFoodLevel(20);
+				//we set this to 0 so the phantoms scew players equaly when we allow them to spawn
+				play.setStatistic(Statistic.TIME_SINCE_REST, 0);
 				play.setSaturation(0);
 				play.setExp(0);
 				play.setLevel(0);
 				play.getInventory().clear();
+				
 				// random teleport the player somewhere in the world
 				play.teleport(loc);
 			}
@@ -298,6 +328,7 @@ public class UHC
 		status = GameStatus.WAITING;
 	}
 	
+	//TODO for some reason this method doesnt work probley
 	public void updateAliveStatus(UHCTeam team)
 	{
 		int count = 0;
@@ -310,12 +341,16 @@ public class UHC
 				count++;
 			}
 		}
-		//if we are going to set the alive boolean to false we knock one of from the teams alive counter
+		//if we are going to mark the team dead then we knock one of from the teams alive counter
 		if(team.isAlive() && count == 0)
 		{
 			teamsAlive--;
 		}
-		team.setAlive(count > 0);
+		
+		if(count == 0)
+		{
+			team.markDead();
+		}
 	}
 	
 	public void setTeamSizeFromConfig()

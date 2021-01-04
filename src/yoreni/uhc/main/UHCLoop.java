@@ -54,8 +54,9 @@ public class UHCLoop extends BukkitRunnable
 				boolean stillAlive = index != -1;
 				if(System.currentTimeMillis() - game.disconnectedPlayers.get(uuid) > game.CONNECTION_TIMEOUT && stillAlive)
 				{
-					UHCTeam team = game.teams.get(Utils.getTeam(uuid, game.teams) - 1);
-
+					//UHCTeam team = game.teams.get(Utils.getTeam(uuid, game.teams) - 1);
+					UHCTeam team = Utils.getPlayersTeam(uuid, game.teams);
+					
 					game.playersAlive.remove(index);
 					game.updateAliveStatus(team);
 					game.disconnectedPlayers.remove(uuid);
@@ -65,7 +66,7 @@ public class UHCLoop extends BukkitRunnable
 			for(Player player : Bukkit.getOnlinePlayers())
 			{
 				World world = player.getWorld();
-				String message = ChatColor.GREEN + Utils.longTime(System.currentTimeMillis() - game.start);
+				String message = ChatColor.GREEN + Utils.longTime(game.getGameTime());
 				player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(message));
 			}
 			//checks if anyone won the game
@@ -84,6 +85,10 @@ public class UHCLoop extends BukkitRunnable
 						break;
 					}
 				}
+				
+				//Player winner = game.playersAlive.get(0);
+				
+				
 				//removes the [] in the string and anounces the winner
 				String teamMembers = team.toString().substring(1, team.toString().length() - 1);
 				if(game.teamSize == 1)
@@ -100,9 +105,9 @@ public class UHCLoop extends BukkitRunnable
 			//adds events eg hyper shrinking
 			if(eventCooldown == 0)
 			{
-				eventCooldown = game.start + settings.getInt("gracePeriodEndsAfter");
-				setupForNextEvent(100000);
-				//setupForNextEvent(Utils.randint((int) Utils.ONE_MIN * 10 ,(int) Utils.ONE_MIN * 20));
+				eventCooldown = game.getStartTimestamp() + settings.getInt("gracePeriodEndsAfter");
+				//setupForNextEvent(100000);
+				setupForNextEvent(Utils.randint((int) Utils.ONE_MIN * 10 ,(int) Utils.ONE_MIN * 20));
 			}
 			if(System.currentTimeMillis() > eventCooldown 
 					&& game.status == GameStatus.PLAYING)
@@ -179,10 +184,10 @@ public class UHCLoop extends BukkitRunnable
 		ArrayList<EventType> pool = new ArrayList<EventType>();
 		pool.add(EventType.HYPER_SHRINK);
 		
-		//if(eventCooldown - game.start > 40 * Utils.ONE_MIN && Main.validDropLoottable)
-		//{
-		//	pool.add(EventType.LOOT);
-		//}
+		if(eventCooldown - game.getStartTimestamp() > 30 * Utils.ONE_MIN && Main.validDropLoottable)
+		{
+			pool.add(EventType.LOOT);
+		}
 		
 		return pool.get(Utils.randint(0, pool.size() - 1));
 	}

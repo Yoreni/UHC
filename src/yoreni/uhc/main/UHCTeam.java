@@ -50,9 +50,9 @@ public class UHCTeam
 		}
 	}
 	
-	public boolean setAlive(boolean value)
+	public void markDead()
 	{
-		return value;
+		alive = false;
 	}
 	
 	public boolean isAlive()

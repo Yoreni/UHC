@@ -31,7 +31,7 @@ public class PlaceHolders extends PlaceholderExpansion
 		}
 		if (identifier.equals("time"))
 		{
-			return Utils.longTime(System.currentTimeMillis() - main.game.start);
+			return Utils.longTime(main.game.getGameTime());
 		}
 		return null;
 	}

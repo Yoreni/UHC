@@ -74,6 +74,7 @@ public class Main extends JavaPlugin implements Listener
 		//register events
 		Bukkit.getPluginManager().registerEvents(this, this);
 		Bukkit.getPluginManager().registerEvents(new Events(this), this);
+		Bukkit.getPluginManager().registerEvents(new InfoboardUpdate(this), this);
 		
 		//hook into PlaceholderAPI
 		if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) 
@@ -83,10 +84,10 @@ public class Main extends JavaPlugin implements Listener
 		
 		//setup the scoreboard for players
 		BukkitTask loop = new UHCLoop(this, game, config).runTaskTimer(this, 1L, 1L);
-    	for(Player player : Bukkit.getOnlinePlayers())
+    	/*for(Player player : Bukkit.getOnlinePlayers())
     	{
     		BukkitTask scoreBoard = new InfoboardUpdate(this, player).runTaskTimer(this, 5L, 5L);
-    	}
+    	}*/
 		/*
 		 * //creates the not ready item ItemEditer a = new ItemEditer();
 		 * a.setID(Material.RED_WOOL); a.setName("&cNot Ready &7(Right click)"); nr =

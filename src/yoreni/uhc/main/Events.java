@@ -1,7 +1,10 @@
 package yoreni.uhc.main;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -9,11 +12,14 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
@@ -28,6 +34,8 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.potion.PotionEffect;
@@ -63,7 +71,7 @@ public class Events implements Listener
 						Utils.ordinalNumber(main.game.playersAlive.size()))
 						, "",5, 20, 5);
 				main.game.playersAlive.remove(def.getUniqueId());
-				UHCTeam defTeam = main.game.teams.get(Utils.getTeam(def, main.game.teams) - 1);
+				UHCTeam defTeam = Utils.getPlayersTeam(def, main.game.teams);
 				main.game.updateAliveStatus(defTeam);
 
 				//code just here for debug just so i know whos being taking off when a player dies
@@ -76,7 +84,7 @@ public class Events implements Listener
 
 				if(atk != null)
 				{
-					UHCTeam atkTeam = main.game.teams.get(Utils.getTeam(atk, main.game.teams) - 1);
+					UHCTeam atkTeam = Utils.getPlayersTeam(atk, main.game.teams);
 					for(Player player : atkTeam.getPlayers()) //the killer and hishers team gets reneration I for 15 seconds
 					{
 						player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION,15,1));
@@ -133,7 +141,7 @@ public class Events implements Listener
 		if(event.getEntity() instanceof Player)
 		{
 			Player player = (Player) event.getEntity();
-			if(System.currentTimeMillis() - main.game.start < PLAYER_IMMUNE_PERIOD)
+			if(main.game.getGameTime() < PLAYER_IMMUNE_PERIOD)
 			{
 				if(event.getCause() == DamageCause.SUFFOCATION)
 				{
@@ -152,7 +160,7 @@ public class Events implements Listener
 			}
 		}
 	}
-	
+
 	@EventHandler
 	public void stopHungerInLobby(FoodLevelChangeEvent event)
 	{
@@ -168,8 +176,8 @@ public class Events implements Listener
 	public void onJoin(PlayerJoinEvent event)
 	{
 		Player player = event.getPlayer();
-		BukkitTask scoreBoard = new InfoboardUpdate(main, player).runTaskTimer(main, 5L, 5L);
-		
+		//BukkitTask scoreBoard = new InfoboardUpdate(main, player).runTaskTimer(main, 5L, 5L);
+
 		//we want control of the players gamemode and mutiverse messes with it
 		HashMap<UUID, PermissionAttachment> perms = new HashMap<UUID, PermissionAttachment>();
 		if(!player.hasPermission("mv.bypass.gamemode.*"))
@@ -231,7 +239,7 @@ public class Events implements Listener
 			{
 				Player atk =  (Player) event.getDamager();
 				Player def = (Player) event.getEntity();
-				if(Utils.getTeam(atk, main.game.teams) == Utils.getTeam(def, main.game.teams))
+				if(Utils.getPlayersTeamNumber(atk, main.game.teams) == Utils.getPlayersTeamNumber(def, main.game.teams))
 				{
 					event.setCancelled(true);
 				}
@@ -256,7 +264,7 @@ public class Events implements Listener
 				else
 				{
 					//if not send it to the players team only
-					UHCTeam team = main.game.teams.get(Utils.getTeam(player, main.game.teams) - 1);
+					UHCTeam team = Utils.getPlayersTeam(player, main.game.teams);
 					for(Player play : team.getPlayers())
 					{
 						play.sendMessage(ChatColor.AQUA + "{Team Chat}" +
@@ -265,6 +273,83 @@ public class Events implements Listener
 					}
 					event.setCancelled(true);
 				}
+			}
+		}
+	}
+
+	@EventHandler
+	public void dobbleAppleDrops(BlockBreakEvent event)
+	{
+		String[] worlds = {main.game.UHC_WORLD_NAME, main.game.UHC_WORLD_NAME + "_nether", main.game.UHC_WORLD_NAME + "_the_end"};
+		List<String> allowedWorlds = new ArrayList(Arrays.asList(worlds));
+
+		//get varibles that will be useful
+		Location loc = event.getBlock().getLocation();
+		Player player = event.getPlayer();
+		Material type = event.getBlock().getType();
+		ItemStack itemInHand = player.getInventory().getItemInMainHand();
+
+		//use normal rates if in worng world
+		if(!allowedWorlds.contains(loc.getWorld().getName()))
+		{
+			return;
+		}
+		
+		//ignore this if its not a oask or dark oak leaf
+		if(type != Material.OAK_LEAVES && type != Material.DARK_OAK_LEAVES)
+		{
+			return;
+		}
+			
+		//remove the block
+		event.setCancelled(true);
+		event.getBlock().setType(Material.AIR);
+		//this is really janky to code and the api should let you damage tools by minecrafts 
+		//api so guess what free duability when you break any kind of oak leaves with a tool
+
+		if(itemInHand.containsEnchantment(Enchantment.SILK_TOUCH) || itemInHand.getType() == Material.SHEARS)
+		{
+			loc.getWorld().dropItemNaturally(loc,new ItemStack(type));
+		}
+		else
+		{
+			//get fortune level also make sure its not a number where an error could happen
+			int fortuneLevel = itemInHand.getEnchantmentLevel(Enchantment.LOOT_BONUS_BLOCKS);
+			if(fortuneLevel > 4)
+			{
+				fortuneLevel = 4;
+			}
+			if(fortuneLevel < 0)
+			{
+				fortuneLevel = 0;
+			}
+
+			//speficaes the rates
+			double[] saplingRate = {0.05, 0.0625, 0.083333336, 0.1, 0.133333333};
+			double[] stickRate = {0.02, 0.022222223, 0.025, 0.033333335};
+			double[] appleRate = {0.01, 0.0111111112, 0.0125, 0.016666667, 0.05};
+
+			//drop the items
+			if(Math.random() < saplingRate[fortuneLevel])
+			{
+				if(type == Material.DARK_OAK_LEAVES)
+				{
+					loc.getWorld().dropItemNaturally(loc,new ItemStack(Material.DARK_OAK_SAPLING));
+				}
+				else
+				{
+					loc.getWorld().dropItemNaturally(loc,new ItemStack(Material.OAK_SAPLING));
+				}
+			}
+			
+			if(Math.random() < stickRate[fortuneLevel])
+			{
+				loc.getWorld().dropItemNaturally(loc,new ItemStack(Material.STICK, (new Random().nextInt(1)) + 1));
+			}
+			
+			if(Math.random() < appleRate[fortuneLevel])
+			{
+				loc.getWorld().dropItemNaturally(loc,new ItemStack(Material.APPLE));
 			}
 		}
 	}
@@ -347,6 +432,26 @@ public class Events implements Listener
 				inv.setItem(50,none.get()); inv.setItem(51,none.get()); inv.setItem(52,none.get()); inv.setItem(53,none.get());
 
 				player.openInventory(inv);
+			}
+		}
+	}
+	
+	@EventHandler
+	public void disablePhantoms(CreatureSpawnEvent event)
+	{
+		//if its not a phantom we dont care
+		if(event.getEntityType() != EntityType.PHANTOM)
+		{
+			return;
+		}
+		
+		if(event.getLocation().getWorld().getName().equals(main.game.UHC_WORLD_NAME))
+		{
+			//we will disable phantoms in the first hour of the game
+			//after that we will hope that players are geared up enough
+			if(main.game.getGameTime() < Utils.ONE_HOUR)
+			{
+				event.setCancelled(true);
 			}
 		}
 	}
