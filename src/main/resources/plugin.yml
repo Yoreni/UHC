@@ -1,0 +1,8 @@
+name: UHC
+version: 1.0
+main: yoreni.uhc.main.Main
+softdepend: [PlaceholderAPI]
+depend: [Multiverse-NetherPortals]
+api-version: 1.16
+commands:
+  uhc:

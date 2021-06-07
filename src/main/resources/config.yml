@@ -1,0 +1,15 @@
+enabled: false
+teamSize: 1
+#times in milliseconds
+borderShrinksAfter: 181000
+gracePeriodEndsAfter: 601000
+#border
+#units are in blocks per second
+borderShrinkSpeed: 0.35
+#events
+hyperShrinkMuti: 3.0
+hyperShrinkDuration: 151000
+lootEventTable: ""
+#debug stuff
+debugMessages: false
+checkForWin: true
